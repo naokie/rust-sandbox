@@ -1,5 +1,8 @@
 use num::Complex;
 use std::str::FromStr;
+use image::ColorType;
+use image::png::PNGEncoder;
+use std::fs::File;
 
 fn escape_time(c: Complex<f64>, limit: usize) -> Option<usize> {
     let mut z = Complex { re: 0.0, im: 0.0 };
@@ -59,4 +62,25 @@ fn pixel_to_point(bounds: (usize, usize), pixel: (usize, usize), upper_left: Com
 #[test]
 fn test_pixel_to_point() {
     assert_eq!(pixel_to_point((100, 200), (25, 175), Complex { re: -1.0, im: 1.0 }, Complex { re: 1.0, im: -1.0 }), Complex { re: -0.5, im: -0.75 });
+}
+
+fn render(pixels: &mut [u8], bounds: (usize, usize), upper_left: Complex<f64>, lower_right: Complex<f64>) {
+    assert_eq!(pixels.len(), bounds.0 * bounds.1);
+    for row in 0..bounds.1 {
+        for col in 0..bounds.0 {
+            let point = pixel_to_point(bounds, (col, row), upper_left, lower_right);
+            pixels[row * bounds.0 + col] = match escape_time(point, 255) {
+                None => 0,
+                Some(count) => 255 - count as u8,
+            };
+        }
+    }
+}
+
+fn write_image(filename: &str, pixels: &[u8], bounds: (usize, usize)) -> Result<(), std::io::Error> {
+    let output = File::create(filename)?;
+    let encoder = PNGEncoder::new(output);
+    encoder.encode(pixels, bounds.0 as u32, bounds.1 as u32, ColorType::Gray(8))?;
+
+    Ok(())
 }
